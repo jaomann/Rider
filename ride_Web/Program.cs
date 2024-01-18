@@ -18,6 +18,10 @@ namespace project_rider
                 .AddEntityFrameworkStores<Context>()
                 .AddDefaultTokenProviders();
 
+            builder.Services.Configure<IdentityOptions>(
+                opts => opts.SignIn.RequireConfirmedEmail = true
+                );
+
             builder.Services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
