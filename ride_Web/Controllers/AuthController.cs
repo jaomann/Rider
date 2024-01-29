@@ -15,49 +15,46 @@ namespace project_rider.Controllers
         private readonly UserManager<IdentityUser> _userManager;
         public readonly RoleManager<IdentityRole> _roleManager;
         private readonly IConfiguration _configuration;
-
-        public AuthController(UserManager<IdentityUser> userManager,
-                                RoleManager<IdentityRole> roleManager,
-                                IConfiguration configuration)
+        private readonly IEmailService _emailService;
+        public AuthController(UserManager<IdentityUser> userManager,RoleManager<IdentityRole> roleManager,IConfiguration configuration,IEmailService emailService)
         {
+            _emailService = emailService;
             _userManager = userManager;
             _roleManager = roleManager;
             _configuration = configuration;
 
         }
+
         [HttpGet]
-        public async Task<IActionResult> EmailConfirm(string token, string email)
-        {
-            var user = await _userManager.FindByEmailAsync(email);
-            if(user != null)
-            {
-                var result = await _userManager.ConfirmEmailAsync(user, token);
-                if (result.Succeeded)
-                {
-                    return StatusCode(StatusCodes.Status200OK,
-                        new Response
-                        {
-                            Status = "Sucess",
-                            Message = "Email Verified Sucessfully"
-                        });
-                }
+        public IActionResult Register(string message)
+       {
+            if (!message.IsNullOrEmpty()) {
+                var messages =  message.Split(',');
+                ViewBag.Erros = messages;
             }
-            return StatusCode(StatusCodes.Status500InternalServerError,
-                        new Response
-                        {
-                            Status = "Error",
-                            Message = "Unable to verify email, User doesnt exist" 
-                        });
+            return View(new RegisterUser());
         }
+        [HttpGet]
+        public IActionResult Login(string message)
+       {
+            message = "login";
+            if (!message.IsNullOrEmpty()) {
+                var messages =  message.Split(',');
+                ViewBag.Erros = messages;
+            }
+            return View(new RegisterUser());
+        }
+
         [HttpPost]
-        public async Task<IActionResult> Register([FromBody] RegisterUser registerUser, string role)
+        public async Task<IActionResult> Register(RegisterUser registerUser)
         {
             if (registerUser != null)
             {
                 //se o usuário já existir, retorna uma response indicando isso.
                 var existingUser = await _userManager.FindByEmailAsync(registerUser.Email);
+                var role = "";
                 if (existingUser != null)
-                    return StatusCode(StatusCodes.Status403Forbidden, new Response { Status = "Error", Message = "Usuário ja existe" });
+                    return RedirectToAction("Register", new { message = "Email já está sendo utilizado!" });
 
                 IdentityUser user = new()
                 {
@@ -65,29 +62,34 @@ namespace project_rider.Controllers
                     SecurityStamp = Guid.NewGuid().ToString(),
                     UserName = registerUser.UserName
                 };
+                
                 //se a role passada via param existir ele tenta criar o usuario e adicionar a role em seguida.
+                if (registerUser.RoleCheck)
+                    role = "Rider";
+                else
+                    role = "Passenger";
                 if (await _roleManager.RoleExistsAsync(role))
                 {
                     var result = await _userManager.CreateAsync(user, registerUser.Password);
 
                     // se nao conseguir criar o user, retorna um status 500.
                     if (!result.Succeeded)
-                        return StatusCode(StatusCodes.Status500InternalServerError, new Response { Status = "Error", Message = "Falha ao criar usuário" });
+                        return RedirectToAction("Register", new { message = result }) ;
 
                     await _userManager.AddToRoleAsync(user, role);
 
                     var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
                     var confirmationLink = Url.Action(nameof(EmailConfirm), "Authentication", new { token, email = user.Email }, Request.Scheme);
-                    //var message = new Message(new string[])
+                    var message = new Message(new string[] { user.Email! }, "Email de confirmação Rider", confirmationLink!);
+                    _emailService.SendEmail(message);
 
 
-
-                    return StatusCode(StatusCodes.Status200OK, new Response { Status = "Sucess", Message = "Usuário criado com sucesso" });
+                    return RedirectToAction("Login");
                 }
                 else
-                    return StatusCode(StatusCodes.Status400BadRequest, new Response { Status = "Error", Message = "Erro nos parametros" });
+                    return RedirectToAction("Register", new { message = "Tente novamente, não existe a categoria escolhida" }); ;
             }
-            return StatusCode(StatusCodes.Status400BadRequest, new Response { Status = "Error", Message = "Erro nos parametros" });
+            return RedirectToAction("Register", new { message = "Preencha os campos corretamente!" });
         }
         [HttpPost]
         public async Task<IActionResult> Login([FromBody] LoginUser loginUser)
@@ -114,6 +116,8 @@ namespace project_rider.Controllers
             }
             return Unauthorized();
         }
+
+        #region Validations
         private JwtSecurityToken GetToken(List<Claim> authClaims)
         {
             var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JWT:Secret"]));
@@ -128,5 +132,30 @@ namespace project_rider.Controllers
 
             return token;
         }
+        [HttpGet]
+        public async Task<IActionResult> EmailConfirm(string token, string email)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+            if(user != null)
+            {
+                var result = await _userManager.ConfirmEmailAsync(user, token);
+                if (result.Succeeded)
+                {
+                    return StatusCode(StatusCodes.Status200OK,
+                        new Response
+                        {
+                            Status = "Sucess",
+                            Message = "Email Verified Sucessfully"
+                        });
+                }
+            }
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                        new Response
+                        {
+                            Status = "Error",
+                            Message = "Unable to verify email, User doesnt exist" 
+                        });
+        }
+        #endregion
     }
 }

@@ -18,6 +18,10 @@ namespace project_rider
                 .AddEntityFrameworkStores<Context>()
                 .AddDefaultTokenProviders();
 
+            var emailConfig = builder.Configuration.GetSection("EmailConfiguration").Get<EmailConfiguration>();
+            builder.Services.AddSingleton(emailConfig);
+            builder.Services.AddScoped<IEmailService, EmailService>();
+
             builder.Services.Configure<IdentityOptions>(
                 opts => opts.SignIn.RequireConfirmedEmail = true
                 );
@@ -48,7 +52,7 @@ namespace project_rider
             app.UseAuthorization();
             app.MapControllerRoute(
                 name: "default",
-                pattern: "{controller=Home}/{action=Index}/{id?}");
+                pattern: "{controller=Auth}/{action=Register}");
 
             app.Run();
         }

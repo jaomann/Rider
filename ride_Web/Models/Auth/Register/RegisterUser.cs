@@ -13,5 +13,6 @@ namespace project_rider.Models.Auth.Register
 
         [Required(ErrorMessage = "Senha é necessária")]
         public string? Password { get; set; }
+        public bool RoleCheck { get; set; }
     }
 }
