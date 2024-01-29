@@ -35,14 +35,9 @@ namespace project_rider.Controllers
             return View(new RegisterUser());
         }
         [HttpGet]
-        public IActionResult Login(string message)
+        public IActionResult Login()
        {
-            message = "login";
-            if (!message.IsNullOrEmpty()) {
-                var messages =  message.Split(',');
-                ViewBag.Erros = messages;
-            }
-            return View(new RegisterUser());
+            return View(new LoginUser());
         }
 
         [HttpPost]
@@ -74,7 +69,7 @@ namespace project_rider.Controllers
 
                     // se nao conseguir criar o user, retorna um status 500.
                     if (!result.Succeeded)
-                        return RedirectToAction("Register", new { message = result }) ;
+                        return RedirectToAction("Register", new { message = result });
 
                     await _userManager.AddToRoleAsync(user, role);
 
@@ -92,7 +87,7 @@ namespace project_rider.Controllers
             return RedirectToAction("Register", new { message = "Preencha os campos corretamente!" });
         }
         [HttpPost]
-        public async Task<IActionResult> Login([FromBody] LoginUser loginUser)
+        public async Task<IActionResult> Login(LoginUser loginUser)
         {
             var user = await _userManager.FindByNameAsync(loginUser.UserName);
             if(user != null && await _userManager.CheckPasswordAsync(user, loginUser.Password))
@@ -108,11 +103,15 @@ namespace project_rider.Controllers
                     authClaims.Add(new Claim(ClaimTypes.Role, role));
                 }
                 var jwtToken = GetToken(authClaims);
-                return Ok(new
-                {
-                    token = new JwtSecurityTokenHandler().WriteToken(jwtToken),
-                    expiration = jwtToken.ValidTo
+                return RedirectToAction("Index", "Home", new {
+                    t = new JwtSecurityTokenHandler().WriteToken(jwtToken),
+                    exp = jwtToken.ValidTo
                 });
+                //return Ok(new
+                //{
+                //    token = new JwtSecurityTokenHandler().WriteToken(jwtToken),
+                //    expiration = jwtToken.ValidTo
+                //});
             }
             return Unauthorized();
         }

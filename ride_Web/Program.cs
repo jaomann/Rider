@@ -52,7 +52,7 @@ namespace project_rider
             app.UseAuthorization();
             app.MapControllerRoute(
                 name: "default",
-                pattern: "{controller=Auth}/{action=Register}");
+                pattern: "{controller=Auth}/{action=Login}");
 
             app.Run();
         }

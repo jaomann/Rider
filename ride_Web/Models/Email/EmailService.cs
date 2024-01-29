@@ -13,6 +13,7 @@ namespace project_rider
         public void SendEmail(Message message)
         {
             var emailMessage = CreateEmailMessage(message);
+            Send(emailMessage);
         }
         public MimeMessage CreateEmailMessage(Message message)
         {
